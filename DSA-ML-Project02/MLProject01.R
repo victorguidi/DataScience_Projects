@@ -254,3 +254,98 @@ recall
 
 F1 <- (2 * precision * recall) / (precision + recall)
 F1
+
+#Importance of the variables
+View(dados_treino_bal)
+varImpPlot(modelo_v2)
+
+# Visualizing the most important variables
+imp_var <- varImpPlot(modelo_v2)
+varImportance <- data.frame(Variables = row.names(imp_var),
+                            Importance = round(imp_var[ ,'MeanDecreaseGini'],2))
+
+#Creating a rank for the variables
+rankImportance <- varImportance %>%
+  mutate(Rank = paste0('#', dense_rank(desc(Importance))))
+
+#Plotting the graphic with ggplot2
+ggplot(rankImportance,
+       aes( x = reorder(Variables, Importance),
+            y = Importance,
+            fill = Importance)) +
+  geom_bar(stat='identity') + 
+  geom_text(aes(x = Variables, y = 0.5, label = Rank),
+            hjust = 0,
+            vjust = 0.55,
+            size = 4,
+            colour = 'red') +
+  labs(x = 'Variables')
+coord_flip()
+
+#Third model - Now only using the most relevant variables
+colnames(dados_treino_bal)
+modelo_v3 <- randomForest(Inandimplente ~ PAY_0 + PAY_2 + PAY_3 + PAY_AMT1 + PAY_AMT2 + PAY_5 + BILL_AMT1,
+                          dados = dados_treino_bal)
+modelo_v3
+
+plot(modelo_v3)
+
+previsoes_v3 <- predict(modelo_v3, dados_teste)
+
+cm_v3 <- caret::confusionMatrix(previsoes_v3, dados_teste$Inandimplente, positive = "1")
+cm_v3
+
+y <- dados_teste$Inandimplente
+y_pred_v3 <- previsoes_v3
+
+precision <- posPredValue(y_pred_v3, y)
+precision
+
+recall <- sensitivity(y_pred_v3, y)
+recall
+
+F1 <- (2 * precision * recall) / (precision + recall)
+F1
+
+#Saving the model in the disk
+saveRDS(modelo_v3, file = "modelo/modelo_v3.rsd")
+
+#Loading a model later
+modelo_final <- readRDS("modelo/modelo_v3.rds")
+
+#We can plot latter with power BI or Shine for example
+
+#Last training giving new data
+# function c in R creates a vector
+PAY_0 <- c(0, 0, 0)
+PAY_2 <- c(0, 0, 0)
+PAY_3 <- c(1, 0, 0)
+PAY_AMT1 <- c(1100, 1000, 1200)
+PAY_AMT2 <- c(1500, 1300, 1150)
+PAY_5 <- c(0, 0, 0)
+BILL_AMT1(350, 420, 280)
+
+#Concatenate in a DataFrame
+novos_clientes <- data.frame(PAY_0, PAY_2, PAY_3, PAY_AMT1, PAY_AMT2, PAY_5, BILL_AMT1)
+View(novos_clientes)
+
+#Previsions for the new data
+previsoes_novos_clientes <- predict(modelo_final, novos_clientes) #It won't work-- this is just for testing
+
+#Checking the type of data 
+str(dados_treino_bal)
+str(novos_clientes)
+
+#Converting the new data
+novos_clientes$PAY_0 <- factor(novos_clientes$PAY_0, levels = (dados_treino_bal$PAY_0))
+novos_clientes$PAY_2 <- factor(novos_clientes$PAY_2, levels = (dados_treino_bal$PAY_2))
+novos_clientes$PAY_3 <- factor(novos_clientes$PAY_3, levels = (dados_treino_bal$PAY_3))
+novos_clientes$PAY_5 <- factor(novos_clientes$PAY_5, levels = (dados_treino_bal$PAY_5))
+str(novos_clientes)
+
+#And now we can predict for the new clients
+previsoes_novos_clientes <- predict(modelo_final, novos_clientes)
+View(previsoes_novos_clientes)
+
+#---------------The END ------------------------------#
+
